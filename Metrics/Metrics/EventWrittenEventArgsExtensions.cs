@@ -15,7 +15,7 @@ namespace Metrics
         public static EventCounterData ToEventCounterData(this EventWrittenEventArgs eventData)
         {
             if (!eventData.IsEventCounter())
-                return null;
+                return null!;
 
             return new EventCounterData(eventData);
         }

@@ -20,7 +20,7 @@ namespace Metrics
                 return;
             else
                 Console.WriteLine(
-                    $"Counter {counterData.Name} reported values " +
+                    $"Counter {counterData!.Name} reported values " +
                     $"Min: {counterData.Min}, " +
                     $"Max: {counterData.Max}, " +
                     $"Count {counterData.Count}, " +

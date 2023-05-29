@@ -7,9 +7,9 @@ namespace Metrics
     {
         public EventCounterData(EventWrittenEventArgs eventData)
         {
-            var payload = (IDictionary<string, object>) eventData.Payload[0];
+            var payload = (IDictionary<string, object>) eventData.Payload![0]!;
 
-            Name = payload["Name"].ToString();
+            Name = payload["Name"].ToString()!;
             Mean = (double)payload["Mean"];
             StandardDeviation = (double)payload["StandardDeviation"];
             Count = (int)payload["Count"];

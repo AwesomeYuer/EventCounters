@@ -1,53 +1,69 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.Tracing;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.Tracing;
 
-namespace Metrics
+namespace Metrics;
+
+class Program
 {
-    class Program
+    static void Main(string[] args)
     {
-        static void Main(string[] args)
+        //var reader = new CustomMetricsEventListener();
+        //var arguments = new Dictionary<string, string?>
+        //{
+        //    {"EventCounterIntervalSec", "1"}
+        //};
+
+        TimingMetricsEventSource source = new TimingMetricsEventSource();
+
+        TimingMetricsEventSource
+                        //.Log    
+                        .AddEventCounters
+                                    (
+                                        new EventCounter("sleep1", source)
+                                        { 
+                                             DisplayName = "sleep1"
+                                             , DisplayUnits = "ms/op"
+                            
+                                        }
+                                        , new EventCounter("sleep2", source)
+                                        {
+                                            DisplayName = "sleep2"
+                                             ,
+                                            DisplayUnits = "ms/op"
+
+                                        }
+
+                                    );
+
+
+        //reader.EnableEvents(customMetricsEventSource, EventLevel.LogAlways, EventKeywords.All, arguments);
+
+        var random = new Random();
+
+        var cts = new CancellationTokenSource();
+
+        Task.Run(() =>
         {
-            var reader = new CustomMetricsEventListener();
-            var arguments = new Dictionary<string, string>
+            while (!cts.IsCancellationRequested)
             {
-                {"EventCounterIntervalSec", "1"}
-            };
-            reader.EnableEvents(CustomMetricsEventSource.Log, EventLevel.LogAlways, EventKeywords.All, arguments);
+                SleepingBeauty(random.Next(10, 20),1);
+                SleepingBeauty(random.Next(10, 20), 2);
 
-            var random = new Random();
+                Thread.Sleep(5 * 1000);
+            }
+        });
 
-            var cts = new CancellationTokenSource();
+        Console.WriteLine("Press any key to stop");
+        Console.ReadKey();
 
-            Task.Run(() =>
-            {
-                while (!cts.IsCancellationRequested)
-                {
-                    SleepingBeauty(random.Next(10, 200));
-                }
-            });
+        cts.Cancel();
 
-            Console.WriteLine("Press any key to stop");
-            Console.ReadKey();
+        //customMetricsEventSource.ApplicationStop();
+    }
 
-            cts.Cancel();
-
-            CustomMetricsEventSource.Log.ApplicationStop();
-        }
-
-        static void SleepingBeauty(int sleepTimeInMs)
-        {
-            var stopwatch = Stopwatch.StartNew();
-
-            Thread.Sleep(sleepTimeInMs);
-
-            stopwatch.Stop();
-
-            CustomMetricsEventSource.Log.ReportMethodDurationInMs(stopwatch.ElapsedMilliseconds);
-            CustomMetricsEventSource.Log.ReportMetric("someCounter", DateTime.Now.Millisecond);
-        }
+    static void SleepingBeauty(int sleepTimeInMs, int s)
+    {
+        var timeStamp = TimingMetricsEventSource.StartTiming();
+        Thread.Sleep(sleepTimeInMs);
+        TimingMetricsEventSource.StopTiming($"sleep{s}", timeStamp);
     }
 }
