@@ -26,7 +26,7 @@ class Program
         var providers = new List<EventPipeProvider>()
         {
             new EventPipeProvider("Simple-Timing-Metrics-EventSource",
-                EventLevel.Informational, arguments: new Dictionary<string, string>
+                EventLevel.Verbose, arguments: new Dictionary<string, string>
                 {
                     {"EventCounterIntervalSec", "1"}
                 })

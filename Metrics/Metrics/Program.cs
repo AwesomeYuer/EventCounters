@@ -12,19 +12,18 @@ class Program
         //    {"EventCounterIntervalSec", "1"}
         //};
 
-        TimingMetricsEventSource source = new TimingMetricsEventSource();
-
+        
         TimingMetricsEventSource
-                        //.Log    
+                        .Logger    
                         .AddEventCounters
                                     (
-                                        new EventCounter("sleep1", source)
+                                        new EventCounter("sleep1", TimingMetricsEventSource.Logger)
                                         { 
                                              DisplayName = "sleep1"
                                              , DisplayUnits = "ms/op"
                             
                                         }
-                                        , new EventCounter("sleep2", source)
+                                        , new EventCounter("sleep2", TimingMetricsEventSource.Logger)
                                         {
                                             DisplayName = "sleep2"
                                              ,
@@ -62,8 +61,8 @@ class Program
 
     static void SleepingBeauty(int sleepTimeInMs, int s)
     {
-        var timeStamp = TimingMetricsEventSource.StartTiming();
+        var timeStamp = TimingMetricsEventSource.Logger.StartTiming();
         Thread.Sleep(sleepTimeInMs);
-        TimingMetricsEventSource.StopTiming($"sleep{s}", timeStamp);
+        TimingMetricsEventSource.Logger.StopTiming($"sleep{s}", timeStamp);
     }
 }
