@@ -10,26 +10,36 @@ class Program
     static void Main(string[] args)
     {
         // Find the process containing the target EventSource.
-        var targetProcess = 
-                    DiagnosticsClient
-                            .GetPublishedProcesses()
-                            .Select(Process.GetProcessById)
-                            .FirstOrDefault(process => process?.ProcessName == "Metrics");
-
+        var targetProcess = DiagnosticsClient
+                                        .GetPublishedProcesses()
+                                        .Select(Process.GetProcessById)
+                                        .FirstOrDefault
+                                            (
+                                                (x) =>
+                                                {
+                                                    return
+                                                        x.ProcessName.Contains(args[0], StringComparison.OrdinalIgnoreCase);
+                                                }
+                                            );
+                                        
         if (targetProcess == null)
         {
-            Console.WriteLine("No process named 'Metrics' found. Exiting.");
+            Console.WriteLine($"No process named '*{args[0]}*' found. Exiting.");
             return;
         }
 
         // Define what EventSource and events to listen to.
         var providers = new List<EventPipeProvider>()
         {
-            new EventPipeProvider("Simple-Timing-Metrics-EventSource",
-                EventLevel.Verbose, arguments: new Dictionary<string, string>
-                {
-                    {"EventCounterIntervalSec", "1"}
-                })
+            new EventPipeProvider
+                    (
+                        "CommonMetricsEventSource"
+                        , EventLevel.Verbose
+                        , arguments: new Dictionary<string, string>
+                                        {
+                                            {"EventCounterIntervalSec", "1"}
+                                        }
+                    )
         };
 
         // Start listening session
@@ -38,16 +48,39 @@ class Program
         using var source = new EventPipeEventSource(session.EventStream);
 
         // Set up output writer
-        source.Dynamic.All += obj =>
+        source.Dynamic.All += traceEvent =>
         {
-            if (obj.EventName == "EventCounters")
+            if (traceEvent.EventName == "EventCounters")
             {
-                var payload = (IDictionary<string, object>) obj.PayloadValue(0);
-                Console.WriteLine(string.Join(", ", payload.Select(p => $"{p.Key}: {p.Value}")));
+                var payload = (IDictionary<string, object>) traceEvent.PayloadValue(0);
+
+                var line = string.Join
+                                        (
+                                            ", "
+                                            , payload
+                                                    .Select
+                                                        (
+                                                            p =>
+                                                            {
+                                                                return
+                                                                $"{p.Key}: {p.Value}";
+                                                            }
+                                                        )
+                                        );
+                if 
+                    (
+                        !line.Contains("Count:0")
+                        //&&
+                        //!line.Contains(@"-Rate""")
+                    )
+                {
+                    //line = line.Replace(":", ":");
+                    Console.WriteLine (line);
+                }
             }
             else
             {
-                Console.WriteLine($"{obj.ProviderName}: {obj.EventName}");
+                Console.WriteLine($"{traceEvent.ProviderName}: {traceEvent.EventName}");
             }
         };
 
@@ -60,7 +93,6 @@ class Program
             Console.WriteLine("Error encountered while processing events");
             Console.WriteLine(e.ToString());
         }
-
         Console.ReadKey();
     }
 }

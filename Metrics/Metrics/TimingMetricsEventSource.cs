@@ -47,7 +47,7 @@ public sealed class TimingMetricsEventSource : EventSource
     [NonEvent]
     public void Timing(string eventCounterName, Action action)
     {
-        if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
+        if (IsEnabled())
         {
             var start = Stopwatch.GetTimestamp();
             action();
@@ -58,19 +58,19 @@ public sealed class TimingMetricsEventSource : EventSource
     [NonEvent]
     public long StartTiming()
     {
-        if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
+        if (IsEnabled())
         {
-            //Console.WriteLine("enabled");
+            Console.WriteLine("enabled");
             return Stopwatch.GetTimestamp();
         }
-        //Console.WriteLine("not enabled");
+        Console.WriteLine("not enabled");
         return 0;
     }
 
     [NonEvent]
     public void StopTiming(string eventCounterName, long startTimestamp)
     {
-        if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
+        if (IsEnabled())
         {
             var end = Stopwatch.GetTimestamp();
             var metric = new TimeSpan(end - startTimestamp).TotalMilliseconds;

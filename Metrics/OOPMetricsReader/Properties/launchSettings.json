@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "OOPMetricsReader": {
+      "commandName": "Project",
+      "commandLineArgs": "Metric"
+    }
+  }
+}
