@@ -39,7 +39,7 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                         string
                         ,
                         (
-                              EventCounter      DurationCounter
+                              EventCounter      ProcessDurationCounter
                             , CounterContainer  ProcessCounter
                             , CounterContainer  ProcessingCounter
                             , CounterContainer  ProcessedCounter
@@ -247,7 +247,7 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                 counters = _dynamicEventCounters[countersNamePrefix];
             }
             
-            if (counters.DurationCounter is not null)
+            if (counters.ProcessDurationCounter is not null)
             {
                 startTimestamp = Stopwatch.GetTimestamp();
             }
@@ -287,11 +287,11 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                 counters = _dynamicEventCounters[countersNamePrefix];
             }
 
-            if (counters.DurationCounter is not null)
+            if (counters.ProcessDurationCounter is not null)
             {
                 var endTimestamp = Stopwatch.GetTimestamp();
                 var duration = new TimeSpan(endTimestamp - startTimestamp).TotalMilliseconds;
-                counters.DurationCounter.WriteMetric(duration);
+                counters.ProcessDurationCounter.WriteMetric(duration);
             }
 
             if (counters.ProcessedCounter is not null)
@@ -323,7 +323,7 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                     _dynamicEventCounters.Remove(key, out var removed)
                 )
             {
-                DiagnosticCounter counter = removed.DurationCounter;
+                DiagnosticCounter counter = removed.ProcessDurationCounter;
                 counter?.Dispose();
                                         
                 counter = removed.ProcessCounter?.Counter!;
