@@ -36,7 +36,7 @@ class Program
 
         //reader.EnableEvents(customMetricsEventSource, EventLevel.LogAlways, EventKeywords.All, arguments);
 
-        CommonMetricsEventSource.Logger.AddCounters("sleep1");
+        //CommonMetricsEventSource.Logger.AddCounters("sleep1");
         //CommonMetricsEventSource.Logger.AddCounters("sleep2");
 
         var random = new Random();
@@ -49,8 +49,8 @@ class Program
             {
                 //SleepingBeauty(random.Next(10, 20),1);
                 //SleepingBeauty(random.Next(10, 20), 2);
-                SleepingBeauty(100, 1);
-                //SleepingBeauty(5, 2);
+                //SleepingBeauty(100, 1);
+                SleepingBeauty(20, 1);
 
                 //Thread.Sleep(5 * 1000);
             }

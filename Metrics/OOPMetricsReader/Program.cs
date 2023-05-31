@@ -37,9 +37,14 @@ class Program
                         , EventLevel.Verbose
                         , arguments: new Dictionary<string, string>
                                         {
-                                            {"EventCounterIntervalSec", "1"}
+                                            { "EventCounterIntervalSec", "1" }
                                         }
                     )
+        };
+
+        var countersCursorsTops = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase)
+        {
+            { "__", Console.CursorTop }
         };
 
         // Start listening session
@@ -52,30 +57,70 @@ class Program
         {
             if (traceEvent.EventName == "EventCounters")
             {
-                var payload = (IDictionary<string, object>) traceEvent.PayloadValue(0);
+                var payloadValue = (IDictionary<string, object>) traceEvent.PayloadValue(0);
+                IDictionary<string, object> payloadKeyValuePairs = (IDictionary<string, object>) payloadValue["Payload"];
 
-                var line = string.Join
-                                        (
-                                            ", "
-                                            , payload
-                                                    .Select
-                                                        (
-                                                            p =>
-                                                            {
-                                                                return
-                                                                $"{p.Key}: {p.Value}";
-                                                            }
-                                                        )
-                                        );
-                if 
+                if (payloadKeyValuePairs.TryGetValue("Count", out var o))
+                { 
+                    var count = (int) o;
+                    if (count <= 0)
+                    {
+                        return;
+                    }
+                }
+
+                var counterName = (string) payloadKeyValuePairs["Name"];
+                var counterDisplayName = (string) payloadKeyValuePairs["DisplayName"];
+                var counterType = (string) payloadKeyValuePairs["CounterType"];
+                var displayUnits = (string) payloadKeyValuePairs["DisplayUnits"];
+                counterDisplayName = $"{counterDisplayName}({counterName})";
+
+                var cursorTop = -1;
+
+                if (!countersCursorsTops.TryGetValue(counterDisplayName, out cursorTop))
+                {
+                    cursorTop = countersCursorsTops
+                                .Max
+                                    (
+                                        (x) =>
+                                        {
+                                            return
+                                                x.Value;
+                                        }
+                                    ) + 1;
+                    countersCursorsTops.Add(counterDisplayName, cursorTop);
+                }
+
+                double @value;
+                var counterValue = string.Empty;
+                if
                     (
-                        !line.Contains("Count:0")
-                        //&&
-                        //!line.Contains(@"-Rate""")
+                        counterType == "Mean"
+                        &&
+                        displayUnits == "ms/op"
                     )
                 {
-                    //line = line.Replace(":", ":");
-                    Console.WriteLine (line);
+                    @value = (double) payloadKeyValuePairs["Mean"];
+                }
+                else if
+                    (
+                        counterType == "Sum"
+                        &&
+                        displayUnits == "ops/sec"
+                    )
+                {
+                    @value = (double) payloadKeyValuePairs["Increment"];
+                }
+                else
+                {
+                    @value = (double) payloadKeyValuePairs["Max"];
+                }
+                counterValue = $"{counterDisplayName}:\t\t\t\t\t\t\t{@value: #,##0.000,00} {displayUnits}";
+                if (!string.IsNullOrEmpty(counterValue))
+                {
+                    Console.SetCursorPosition(0, cursorTop);
+                    Console.Write("\r".PadLeft(Console.WindowWidth - Console.CursorLeft - 1));
+                    Console.WriteLine(counterValue);
                 }
             }
             else

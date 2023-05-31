@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.Tracing;
+﻿using System.Diagnostics.Tracing;
 
 namespace Metrics;
 
@@ -7,6 +6,4 @@ namespace Metrics;
 public sealed class CommonMetricsEventSource : AbstractCommonMetricsEventSource
 {
     public static readonly CommonMetricsEventSource Logger = new ();
-
-
 }

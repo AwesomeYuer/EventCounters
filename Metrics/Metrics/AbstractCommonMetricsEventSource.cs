@@ -2,6 +2,30 @@
 using System.Diagnostics.Tracing;
 
 namespace Metrics;
+
+[Flags]
+public enum CountersTypeFlags : byte
+{
+      None                      = 0b_0000_0000
+
+    , ProcessDurationCounter    = 0b_0000_0001
+
+    , ProcessCounter            = 0b_0000_0010
+    , ProcessingCounter         = 0b_0000_0100
+    , ProcessedCounter          = 0b_0000_1000
+    
+    , CountCounters             = 0b_0000_1110
+
+    , ProcessRateCounter        = 0b_0001_0000
+    , ProcessedRateCounter      = 0b_0010_0000
+
+    , RateCounters              = 0b_0011_0000
+
+    , Common                    = ProcessDurationCounter | ProcessedCounter | ProcessedRateCounter
+
+    , ALL                       = 0b_0011_1111
+}
+
 public abstract class AbstractCommonMetricsEventSource : EventSource
 {
     private class CounterContainer
@@ -15,12 +39,12 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                         string
                         ,
                         (
-                              EventCounter DurationCounter
-                            , CounterContainer ProcessCounter
-                            , CounterContainer ProcessingCounter
-                            , CounterContainer ProcessedCounter
-                            , CounterContainer ProcessRateCounter
-                            , CounterContainer ProcessedRateCounter
+                              EventCounter      DurationCounter
+                            , CounterContainer  ProcessCounter
+                            , CounterContainer  ProcessingCounter
+                            , CounterContainer  ProcessedCounter
+                            , CounterContainer  ProcessRateCounter
+                            , CounterContainer  ProcessedRateCounter
                         )
                     > _dynamicEventCounters = new (StringComparer.InvariantCultureIgnoreCase);
                         
@@ -28,117 +52,165 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
     //public static readonly TimingMetricsEventSource Logger = new ();
 
     private object _locker = new object ();
-    
+
+     
+
     [NonEvent]
-    public bool AddCounters(string countersNamePrefix)
+    public bool AddCounters(string countersNamePrefix, CountersTypeFlags countersTypeFlags = CountersTypeFlags.Common)
     {
-        var counterName = $"{countersNamePrefix}-duration";
-        var eventCounter = new EventCounter(counterName, this)
+        EventCounter processDurationCounter = null!;
+        if (countersTypeFlags.HasFlag(CountersTypeFlags.ProcessDurationCounter))
         {
-              DisplayName = counterName
-            , DisplayUnits = "ms/op"
-        };
-        counterName = $"{countersNamePrefix}-Process";
-        var processCounter = new PollingCounter
-                                    (
-                                        counterName
-                                        , this
-                                        , () =>
-                                        {
-                                            return
-                                                _dynamicEventCounters
-                                                    [countersNamePrefix]
-                                                                .ProcessCounter
-                                                                .Count;
-                                        }
-                                    )
-        { 
-              DisplayName = counterName
-            , DisplayUnits = "op"
-        };
+            var counterName = $"{countersNamePrefix}-Duration";
+            processDurationCounter = new EventCounter(counterName, this)
+            {
+                  DisplayName = counterName
+                , DisplayUnits = "ms/op"
+            };
+        }
 
-        counterName = $"{countersNamePrefix}-Processing";
-        var processingCounter = new PollingCounter
-                                    (
-                                        counterName
-                                        , this
-                                        , () =>
-                                        {
-                                            return
-                                                _dynamicEventCounters
-                                                    [countersNamePrefix]
-                                                                .ProcessingCounter
-                                                                .Count;
-                                        }
-                                    )
+        CounterContainer processCounterContainer = null!;
+        if (countersTypeFlags.HasFlag(CountersTypeFlags.ProcessCounter))
         {
-              DisplayName = counterName
-            , DisplayUnits = "op"
-        };
+            var counterName = $"{countersNamePrefix}-Process-Count";
+            var counter = new PollingCounter
+                                        (
+                                            counterName
+                                            , this
+                                            , () =>
+                                            {
+                                                return
+                                                    _dynamicEventCounters
+                                                        [countersNamePrefix]
+                                                                    .ProcessCounter
+                                                                    .Count;
+                                            }
+                                        )
+            { 
+                  DisplayName = counterName
+                , DisplayUnits = "op"
+            };
+            processCounterContainer = new CounterContainer()
+            {
+                  Counter = counter
+                , Count = 0
+            };
+        }
 
-        counterName = $"{countersNamePrefix}-Processed";
-        var processedCounter = new PollingCounter
-                                    (
-                                        counterName
-                                        , this
-                                        , () =>
-                                        {
-                                            return
-                                                _dynamicEventCounters
-                                                    [countersNamePrefix]
-                                                                .ProcessedCounter
-                                                                .Count;
-                                        }
-                                    )
+        CounterContainer processingCounterContainer = null!;
+        if (countersTypeFlags.HasFlag(CountersTypeFlags.ProcessingCounter))
         {
-              DisplayName = counterName
-            , DisplayUnits = "op"
-        };
+            var counterName = $"{countersNamePrefix}-Processing-Count";
+            var counter = new PollingCounter
+                                        (
+                                            counterName
+                                            , this
+                                            , () =>
+                                            {
+                                                return
+                                                    _dynamicEventCounters
+                                                        [countersNamePrefix]
+                                                                    .ProcessingCounter
+                                                                    .Count;
+                                            }
+                                        )
+            {
+                  DisplayName = counterName
+                , DisplayUnits = "op"
+            };
+            processingCounterContainer = new CounterContainer()
+            {
+                  Counter = counter
+                , Count = 0
+            };
+        }
 
-        counterName = $"{countersNamePrefix}-Process-Rate";
-        var processRateIncrementingPollingCounter =
-                new IncrementingPollingCounter
-                        (
-                            counterName
-                            , this
-                            , () =>
-                            {
-                                return
-                                    _dynamicEventCounters
-                                            [countersNamePrefix]
-                                                    .ProcessRateCounter
-                                                    .Count;
-                            }
-                        )
-                {
-                    DisplayName = counterName
-                    , DisplayRateTimeScale = TimeSpan.FromSeconds(1)
-                    , DisplayUnits = "ops/sec"
+        CounterContainer processedCounterContainer = null!;
+        if (countersTypeFlags.HasFlag(CountersTypeFlags.ProcessedCounter))
+        {
+            var counterName = $"{countersNamePrefix}-Processed-Count";
+            var counter = new PollingCounter
+                                        (
+                                            counterName
+                                            , this
+                                            , () =>
+                                            {
+                                                return
+                                                    _dynamicEventCounters
+                                                        [countersNamePrefix]
+                                                                    .ProcessedCounter
+                                                                    .Count;
+                                            }
+                                        )
+            {
+                  DisplayName = counterName
+                , DisplayUnits = "op"
+            };
+            processedCounterContainer = new CounterContainer()
+            {
+                  Counter = counter
+                , Count = 0
+            };
+        }
 
-                };
 
-        counterName = $"{countersNamePrefix}-Processed-Rate";
-        var processedRateIncrementingPollingCounter =
-                new IncrementingPollingCounter
-                        (
-                            counterName
-                            , this
-                            , () =>
-                            {
-                                return
-                                    _dynamicEventCounters
-                                            [countersNamePrefix]
-                                                    .ProcessedRateCounter
-                                                    .Count;
-                            }
-                        )
-                {
-                      DisplayName = counterName
-                    , DisplayRateTimeScale = TimeSpan.FromSeconds( 1 )
-                    , DisplayUnits = "ops/sec"
+        CounterContainer processRateCounterContainer = null!;
+        if (countersTypeFlags.HasFlag(CountersTypeFlags.ProcessRateCounter))
+        {
+            var counterName = $"{countersNamePrefix}-Process-Rate";
+            var counter = new IncrementingPollingCounter
+                                        (
+                                            counterName
+                                            , this
+                                            , () =>
+                                            {
+                                                return
+                                                    _dynamicEventCounters
+                                                        [countersNamePrefix]
+                                                                    .ProcessRateCounter
+                                                                    .Count;
+                                            }
+                                        )
+            {
+                  DisplayName = counterName
+                , DisplayRateTimeScale = TimeSpan.FromSeconds(1)
+                , DisplayUnits = "ops/sec"
+            };
+            processRateCounterContainer = new CounterContainer()
+            {
+                  Counter = counter
+                , Count = 0
+            };
+        }
 
-                };
-
+        CounterContainer processedRateCounterContainer = null!;
+        if (countersTypeFlags.HasFlag(CountersTypeFlags.ProcessedRateCounter))
+        {
+            var counterName = $"{countersNamePrefix}-Processed-Rate";
+            var counter = new IncrementingPollingCounter
+                                        (
+                                            counterName
+                                            , this
+                                            , () =>
+                                            {
+                                                return
+                                                    _dynamicEventCounters
+                                                        [countersNamePrefix]
+                                                                    .ProcessedRateCounter
+                                                                    .Count;
+                                            }
+                                        )
+            {
+                  DisplayName = counterName
+                , DisplayRateTimeScale = TimeSpan.FromSeconds(1)
+                , DisplayUnits = "ops/sec"
+            };
+            processedRateCounterContainer = new CounterContainer()
+            {
+                  Counter = counter
+                , Count = 0
+            };
+        }
 
         var r = _dynamicEventCounters
                                 .TryAdd
@@ -146,55 +218,26 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                                             countersNamePrefix
                                             ,
                                             (
-                                                  eventCounter
-                                                , new CounterContainer()
-                                                {
-                                                       Counter =  processCounter
-                                                     , Count = 0
-                                                }
-                                                , new CounterContainer()
-                                                {
-                                                      Counter = processingCounter
-                                                    , Count = 0
-                                                }
-                                                , new CounterContainer()
-                                                {
-                                                      Counter = processedCounter
-                                                    , Count = 0
-                                                }
-                                                , new CounterContainer()
-                                                { 
-                                                      Counter = processRateIncrementingPollingCounter
-                                                    , Count = 0
-                                                }
-                                                , new CounterContainer()
-                                                {
-                                                      Counter = processRateIncrementingPollingCounter
-                                                    , Count = 0
-                                                }
+                                                  processDurationCounter
+                                                , processCounterContainer
+                                                , processingCounterContainer
+                                                , processedCounterContainer
+                                                , processRateCounterContainer
+                                                , processedRateCounterContainer
                                             )
                                         );
         return r;
     }
 
-    [NonEvent]
-    public void Timing(string eventCounterName, Action action)
-    {
-        if (IsEnabled())
-        {
-            var start = Stopwatch.GetTimestamp();
-            action();
-            StopCounting(eventCounterName, start);
-        }
-    }
 
     [NonEvent]
     public long StartCounting(string countersNamePrefix)
     {
+        var startTimestamp = -1l;
         if (IsEnabled())
         {
             Console.WriteLine("enabled");
-            var startTimestamp = Stopwatch.GetTimestamp();
+            
             if (!_dynamicEventCounters.TryGetValue(countersNamePrefix, out var counters))
             {
                 lock (_locker)
@@ -203,10 +246,27 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                 }
                 counters = _dynamicEventCounters[countersNamePrefix];
             }
-            Interlocked.Increment(ref counters.ProcessCounter.Count);
-            Interlocked.Increment(ref counters.ProcessingCounter.Count);
             
-            Interlocked.Increment(ref counters.ProcessRateCounter.Count);
+            if (counters.DurationCounter is not null)
+            {
+                startTimestamp = Stopwatch.GetTimestamp();
+            }
+
+            if (counters.ProcessCounter is not null)
+            {
+                Interlocked.Increment(ref counters.ProcessCounter.Count);
+            }
+
+            if (counters.ProcessingCounter is not null)
+            {
+                Interlocked.Increment(ref counters.ProcessingCounter.Count);
+            }
+
+            if (counters.ProcessRateCounter is not null)
+            {
+                Interlocked.Increment(ref counters.ProcessRateCounter.Count);
+            }
+            
             return startTimestamp;
         }
         Console.WriteLine("not enabled");
@@ -218,9 +278,6 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
     {
         if (IsEnabled())
         {
-            var endTimestamp = Stopwatch.GetTimestamp();
-            var metric = new TimeSpan(endTimestamp - startTimestamp).TotalMilliseconds;
-
             if (!_dynamicEventCounters.TryGetValue(countersNamePrefix, out var counters))
             {
                 lock (_locker)
@@ -230,14 +287,63 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
                 counters = _dynamicEventCounters[countersNamePrefix];
             }
 
-            counters.DurationCounter.WriteMetric(metric);
-            Interlocked.Increment(ref counters.ProcessedCounter.Count);
-            var l = Interlocked.Decrement(ref counters.ProcessingCounter.Count);
-            if (l < 0)
+            if (counters.DurationCounter is not null)
             {
-                Interlocked.Exchange(ref counters.ProcessingCounter.Count, 0);
+                var endTimestamp = Stopwatch.GetTimestamp();
+                var duration = new TimeSpan(endTimestamp - startTimestamp).TotalMilliseconds;
+                counters.DurationCounter.WriteMetric(duration);
             }
-            Interlocked.Increment(ref counters.ProcessedRateCounter.Count);
+
+            if (counters.ProcessedCounter is not null)
+            {
+                Interlocked.Increment(ref counters.ProcessedCounter.Count);
+            }
+
+            if (counters.ProcessingCounter is not null)
+            {
+                var l = Interlocked.Decrement(ref counters.ProcessingCounter.Count);
+                if (l < 0)
+                {
+                    Interlocked.Exchange(ref counters.ProcessingCounter.Count, 0);
+                }
+            }
+
+            if (counters.ProcessedRateCounter is not null)
+            {
+                Interlocked.Increment(ref counters.ProcessedRateCounter.Count);
+            }
         }
+    }
+    protected override void Dispose(bool disposing)
+    {
+        foreach (var key in _dynamicEventCounters.Keys)
+        {
+            if 
+                (
+                    _dynamicEventCounters.Remove(key, out var removed)
+                )
+            {
+                DiagnosticCounter counter = removed.DurationCounter;
+                counter?.Dispose();
+                                        
+                counter = removed.ProcessCounter?.Counter!;
+                counter?.Dispose();
+
+                counter = removed.ProcessingCounter?.Counter!;
+                counter?.Dispose();
+
+                counter = removed.ProcessedCounter?.Counter!;
+                counter?.Dispose();
+
+                counter = removed.ProcessRateCounter?.Counter!;
+                counter?.Dispose();
+
+                counter = removed.ProcessedRateCounter?.Counter!;
+                counter?.Dispose();
+            }
+        }
+        _dynamicEventCounters.Clear();
+        _dynamicEventCounters = null!;
+        base.Dispose(disposing);
     }
 }
