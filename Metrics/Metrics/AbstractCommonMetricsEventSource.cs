@@ -53,8 +53,6 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
 
     private object _locker = new object ();
 
-     
-
     [NonEvent]
     public bool AddCounters(string countersNamePrefix, CountersTypeFlags countersTypeFlags = CountersTypeFlags.Common)
     {
@@ -231,9 +229,38 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
 
 
     [NonEvent]
-    public long StartCounting(string countersNamePrefix)
+    public void Counting(string countersNamePrefix, Action action, CountersTypeFlags countersTypeFlags = CountersTypeFlags.Common)
     {
-        var startTimestamp = -1l;
+        var startTimestamp = StartCounting(countersNamePrefix, countersTypeFlags);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            StopCounting(countersNamePrefix, startTimestamp, countersTypeFlags);        
+        }
+    }
+
+    [NonEvent]
+    public async Task CountingAsync(string countersNamePrefix, Func<Task> action, CountersTypeFlags countersTypeFlags = CountersTypeFlags.Common)
+    {
+        var startTimestamp = StartCounting(countersNamePrefix, countersTypeFlags);
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            StopCounting(countersNamePrefix, startTimestamp, countersTypeFlags);
+        }
+    }
+
+
+    [NonEvent]
+    public long StartCounting(string countersNamePrefix, CountersTypeFlags countersTypeFlags = CountersTypeFlags.Common)
+    {
+        var startTimestamp = -1L;
         if (IsEnabled())
         {
             Console.WriteLine("enabled");
@@ -242,7 +269,7 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
             {
                 lock (_locker)
                 {
-                    AddCounters(countersNamePrefix);
+                    AddCounters(countersNamePrefix, countersTypeFlags);
                 }
                 counters = _dynamicEventCounters[countersNamePrefix];
             }
@@ -274,7 +301,7 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
     }
 
     [NonEvent]
-    public void StopCounting(string countersNamePrefix, long startTimestamp)
+    public void StopCounting(string countersNamePrefix, long startTimestamp, CountersTypeFlags countersTypeFlags = CountersTypeFlags.Common)
     {
         if (IsEnabled())
         {
@@ -282,7 +309,7 @@ public abstract class AbstractCommonMetricsEventSource : EventSource
             {
                 lock (_locker)
                 {
-                    AddCounters(countersNamePrefix);
+                    AddCounters(countersNamePrefix, countersTypeFlags);
                 }
                 counters = _dynamicEventCounters[countersNamePrefix];
             }

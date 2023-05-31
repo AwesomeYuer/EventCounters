@@ -115,13 +115,19 @@ class Program
                 {
                     @value = (double) payloadKeyValuePairs["Max"];
                 }
-                counterValue = $"{counterDisplayName}:\t\t\t\t\t\t\t{@value: #,##0.000,00} {displayUnits}";
-                if (!string.IsNullOrEmpty(counterValue))
+                
+                //if (!string.IsNullOrEmpty(counterValue))
                 {
+                    var counterLabel = $"{DateTime.Now: yyyy-MM-dd HH:mm:ss.fffff} @ {counterDisplayName} @ :";
+                    var counterValueText = $"{@value: #,##0.000,00} {displayUnits}";
+
                     Console.SetCursorPosition(0, cursorTop);
                     Console.Write("\r".PadLeft(Console.WindowWidth - Console.CursorLeft - 1));
-                    Console.WriteLine(counterValue);
+                    Console.Write(counterLabel);
+                    Console.CursorLeft = Console.WindowWidth - counterValueText.Length - 50;
+                    Console.WriteLine(counterValueText);
                 }
+                
             }
             else
             {
